@@ -9,11 +9,14 @@
 
 library(shiny)
 
+
+
 # Define server logic required to draw a histogram
 shinyServer(function(input, output, session) {
   #----------------------------------------------------------------- Basic ----
   
   source("functionsInApp.R")
+  options(stringsAsFactors = FALSE)
   
   # actually render the dropdownMenu PROGRESS
   output$menu <- renderMenu({
@@ -65,10 +68,13 @@ shinyServer(function(input, output, session) {
   temp.table.simple <- reactive({
     DT::datatable(temp$data,
                   class = 'cell-border stripe',
-                  options = list(pageLength = 10,
+                  options = list(paging = F,
+                                 #pageLength = 10,
                                  #autoWidth = TRUE,
                                  server = T,
-                                 scrollX='400px')) 
+                                 scrollX='400px',
+                                 scrollY='600px'),
+                  selection = 'none') 
   })
   
   temp.to.res <- reactive({
@@ -299,8 +305,26 @@ shinyServer(function(input, output, session) {
   })
   
   
-  #----------------------------------------------------------------- 2a. Define Redefine ----
+  #----------------------------------------------------------------- 2 Define Redefine ----
   previousPage <- NULL
+  
+  # collapsable information boxes
+  observeEvent(input$infoBox_numeric_titleId, {
+    js$collapse("infoBox_numeric")
+  })  
+  observeEvent(input$infoBox_factor_titleId, {
+    js$collapse("infoBox_factor")
+  })
+  observeEvent(input$infoBox_ordered_titleId, {
+    js$collapse("infoBox_ordered")
+  })
+  observeEvent(input$infoBox_integer_titleId, {
+    js$collapse("infoBox_integer")
+  })
+  observeEvent(input$infoBox_Date_titleId, {
+    js$collapse("infoBox_Date")
+  })
+
   
   output$MainBody=renderUI({
     fluidPage(
@@ -334,14 +358,24 @@ shinyServer(function(input, output, session) {
     return(out)
   }
   
-  output$data <- DT::renderDataTable({
-    req(res$varNames)
-    res$varNames %>% 
-      `colnames<-`(letters[1:NCOL(res$varNames)])
-  }, server = F, escape = F, selection = 'none',  extensions = "FixedColumns",
-  options = list(scrollX = TRUE,
-                 fixedColumns = list(leftColumns = 2))
-  )
+  # renders the class selection table
+  output$data <- DT::renderDataTable(
+    {
+      req(res$varNames)
+      # print(res$varNames)
+      addTooltip(session, "button_1_1", "title", placement = "bottom", trigger = "hover",
+                 options = NULL)
+      res$varNames %>% 
+        `colnames<-`(letters[1:NCOL(res$varNames)])
+    }, 
+    server = F, 
+    escape = F,
+    selection = 'none',  
+    extensions = "FixedColumns",
+    options = list(scrollX = TRUE,
+                   fixedColumns = list(leftColumns = 2))
+  ) 
+  # tooltip = tooltipOptions(title = "Click to see inputs !")
   
   dataModal <- function(id) {
     selectedCol <- as.numeric(strsplit(id, "_")[[1]][2])
@@ -349,19 +383,32 @@ shinyServer(function(input, output, session) {
     modalDialog(
       h3("Selected column:",selectedRow,"(Excel:",excel.LETTERS(selectedRow),")"),
       #plotOutput("plot")
+      column(6,
+             h5("some statistics"),
+             h5("number of rows"),
+             h5("number of empty entries"),
+             h5("number of unique levels"),
+             h5("number of empty cells")
+      ),
+      column(6,
       DT::dataTableOutput("variableTable"),
-      
-      footer = tagList(
-        modalButton("Cancel")
+      ),
+      footer = fluidRow(
+        column(12,align="center",
+          modalButton("Cancel")
+        )
       )
+      ,
+      easyClose = T
     )
   }
   
   output$plot = renderPlot(plot(res$data[,4]))
+  
   output$variableTable = DT::renderDataTable({
     req(res$data)
     selectedRow <- as.numeric(strsplit(input$select_check, "_")[[1]][3])
-    
+
     res$data[,selectedRow,drop=F]
   },options = list(scrollY ='400px',paging = F))
   
@@ -369,13 +416,25 @@ shinyServer(function(input, output, session) {
     showModal(dataModal(input$select_check))
   })
   
-  observeEvent(input$show, {
-    showModal(dataModal("id_1_1_123"))
+  #### what does this
+  observeEvent(input$show,{
+    print("#================================================================================#")
+    print(res)
+    print("res$classified--------------------------------------------------------#")
+    try(print(head(res$classified)))
+    print("res$variableTypesn----------------------------------------------------#")
+    try(print(res$variableTypes))
+    print("res$n-----------------------------------------------------------------#")
+    try(print(res$n))
+    # try(print(res$varNames))
+    
+    #showModal(dataModal("id_1_1_123"))
   })
   
   observeEvent(input$select_button, {
-    #print(input$select_button)
-    print(res$varNames)
+    print("input$select_button")
+    # print(input$select_button)
+    # print(res$varNames)
     selectedRow <- as.numeric(strsplit(input$select_button, "_")[[1]][3])
     selectedCol <- as.numeric(strsplit(input$select_button, "_")[[1]][2])
     # print(res$varNames)
@@ -386,21 +445,29 @@ shinyServer(function(input, output, session) {
       res$variableTypes$set[selectedRow] = selectedCol
       progress_defineVar$set(sum(res$variableTypes$set!=0)/NCOL(res$data), detail = paste("selected",selectedRow))
       res$varNames <- toggleSelected(res$varNames,selectedCol,selectedRow,nCol = 6)
+      
+      res$classified[,selectedRow] <- res$classified[,selectedRow] +
+        10 * is.non(res$data[,selectedRow],"varName!",names(def.varNames.buttons)[res$variableTypes$set[selectedRow]])
+      
       res$variableTypes$nMissing[selectedRow] <- sum(is.missing(res$data[,selectedRow]))
       res$variableTypes$nInClass[selectedRow] <- sum(is.non(res$data[,selectedRow],"varName!",names(def.varNames.buttons)[res$variableTypes$set[selectedRow]]))
-      res$variableTypes$nInMonitor[selectedRow] <- 5
+      res$variableTypes$nInMonitor[selectedRow] <- NA
     } else {
       res$varNames$`.`[selectedRow] <<- '<i class="fa fa-times-circle"></i>'
       res$variableTypes$set[selectedRow] = 0
       progress_defineVar$set(sum(res$variableTypes$set!=0)/NCOL(res$data), detail = paste("deselected",selectedRow))
       res$varNames <- unToggle(res$varNames,selectedRow,nCol = 6)
+      
+      ## Check if monitor is still active! xxx!!!???
+      res$classified[,selectedRow] <- res$classified[,selectedRow] %% 10
+      
       res$variableTypes$nMissing[selectedRow] <- NA
       res$variableTypes$nInClass[selectedRow] <- NA
       res$variableTypes$nInMonitor[selectedRow] <- NA
     }
     print("names(def.varNames.buttons)[res$variableTypes$set]")
-    print((names(def.varNames.buttons)[res$variableTypes$set])[selectedRow])
-    print(res$variableTypes)
+    #print((names(def.varNames.buttons)[res$variableTypes$set])[selectedRow])
+    #print(res$variableTypes)
   })
   
   output$typeInfo_numbers <- renderUI({
@@ -420,26 +487,31 @@ shinyServer(function(input, output, session) {
   output$typeInfo_factors <- renderUI({paste0("<font color=\"",get.typeColor("factor"),"\"><b>factors</b></font>: Explain me!!!.") })
   
   #----------------------------------------------------------------- 3a. Explore ----
-  output$exploreVarNames <- DT::renderDataTable({
-    data.frame(variable = colnames(res$data),
-               type=ifelse(res$variableTypes$set==0,
-                           NA,
-                           names(def.varNames.buttons)[res$variableTypes$set]), 
-               monitor = NA, # set TRUE/FALSE
-               nMissing=res$variableTypes$nMissing,
-               nInClass=res$variableTypes$nInClass,
-               nInMonitor=res$variableTypes$nInMonitor)
-  },
-  selection = 'single',options = list(scrollY ='400px',paging = F)
+  observeEvent(input$infoBox_monitor_titleId, {
+    js$collapse("infoBox_monitor")
+  })  
+  
+  output$exploreVarNames <- DT::renderDataTable(
+    {
+      data.frame(variable = colnames(res$data),
+                 type=res$variableTypes$set, 
+                 monitor = NA, # set TRUE/FALSE
+                 nMissing = res$variableTypes$nMissing,
+                 nWrongClass = res$variableTypes$nInClass,
+                 nNotInMonitor = res$variableTypes$nInMonitor)
+    },
+    selection = 'single',  
+    #extensions = "FixedColumns",
+    options = list(scrollX =TRUE)
   )
   
   observeEvent(input$exploreVarNames_rows_selected, {
     print("res$variableTypes")
-    print(res$variableTypes)
+    #print(res$variableTypes)
     print("names(def.varNames.buttons)[res$variableTypes$set]")
-    print(names(def.varNames.buttons)[res$variableTypes$set])
+    #print(names(def.varNames.buttons)[res$variableTypes$set])
     print("input$exploreVarNames_rows_selected")
-    print(input$exploreVarNames_rows_selected)
+    #print(input$exploreVarNames_rows_selected)
   })
   
   output$plot.tmp <- renderPlotly({
@@ -451,11 +523,18 @@ shinyServer(function(input, output, session) {
     ggplotly(p)
   })
   
+  observeEvent(input$accept_monitor,{
+    print(input$exploreVarNames_rows_selected) 
+    
+  })
+  
   explore.rightPanel <- function(set){
     if (set==0){
-      out <- list(h3("No type defined yet!"))
+      return(
+        out <- list(h4("There can not be a monitor for nothing!"))
+      )
     }
-    if (set==1){
+    if (set==1){ # numeric
       out <- list(
         fluidRow(
           column(12,
@@ -464,51 +543,69 @@ shinyServer(function(input, output, session) {
                      HTML("label{float:left;}")
                    )
                  ),
-                 radioButtons("decimal",HTML("decimal separator:",HTML('&nbsp;&nbsp;&nbsp;')),c(". (dot)",", (comma)"),inline = T)
+                 radioButtons("decimal",HTML("decimal separator:",HTML('&nbsp;&nbsp;&nbsp;')),c(". (dot)",", (comma)"),inline = F)
           )
         ),
         fluidRow(
-          column(6,numericInput("min.1","min",-Inf)),
-          column(6,numericInput("min.1","max",Inf))
+          column(6,numericInput("min_numeric","minimum",-Inf)),
+          column(6,numericInput("max_numeric","maximum",Inf)),
+          column(12,h5("If there is no limit, enter nothing."))
         )
       )
     }
-    if (set==2){
+    if (set==2){ # integer
       out <- list(
-        column(6,numericInput("min.2","min",-Inf)),
-        column(6,numericInput("min.2","max",Inf))
+        column(6,numericInput("min_integer","minimum",-Inf)),
+        column(6,numericInput("max_integer","maximum",Inf)),
+        tags$hr(),
+        column(12,
+               actionButton("accept_monitor_integer","Accept Monitor!",width = "100%")
+        )
       )
     }
-    if (set==3){
+    if (set==3){ # cateforial
       out <- list(h3("Define the correct classes"))
     }
-    if (set==4){
+    if (set==4){ # ordered factor
       out <- list(h3("Define the correct classes"),
                   h3("And order."))
     }
-    if (set==5){
+    if (set==5){ # date
       out <- list(
         h3("Define date format. If they are only numbers e.g. 492933 then write: dddd"),
         textInput("textinput","date format","e.g. dd.mm.yy")
       )
     }
     if (set==6){
-      out <- list(h3("No structure!"))
+      return(
+        out <- list(h4("No structure -> nothing to monitor!"))
+      )
     }
-    return(out)
+    return(
+      append(
+        out,
+        list(
+          tags$hr(),
+          column(12,
+                 actionButton("accept_monitor","Accept Monitor!",width = "100%")
+          )
+        )
+      )
+    )
   }
   
   dynamicUI.explore.rightPanel <- reactive({
     #if (1==1)
     req(input$exploreVarNames_rows_selected)
     return(
-      append(
-        list(h5(paste("rowSelected:",input$exploreVarNames_rows_selected)),
-             h5(paste("setSelected:",res$variableTypes$set[input$exploreVarNames_rows_selected]))),
+      #append(
+        # list(h5(paste("rowSelected:",input$exploreVarNames_rows_selected)),
+        #      h5(paste("setSelected:",res$variableTypes$set[input$exploreVarNames_rows_selected]))),
         explore.rightPanel(res$variableTypes$set[input$exploreVarNames_rows_selected])
-      )
+      #)
     )
   })
+  
   output$explore.sidePanel <- renderUI( {
     dynamicUI.explore.rightPanel()
   })

@@ -79,13 +79,13 @@ describe.variable <- function(name=NULL,df){
 # type = character ("integer",etc.)
 # return = vector() of character()
 get.typeColor <- function(type){
-  out <- ifelse(type == "integer",'#FFBB00',
+  out <- ifelse(type == "integer",'#f39c12',
                 ifelse(type == "character",'#3B993B',
-                       ifelse(type == "numeric", '#FF9900',
-                              ifelse(type == "factor", '#66CC00',# #999900
-                                     ifelse(type == "ordered.factor", '#00CC66',
+                       ifelse(type == "numeric", '#ff851b',
+                              ifelse(type == "factor", '#3c8dbc',# #999900
+                                     ifelse(type == "ordered.factor", '#0091d5',
                                             ifelse(type == "double", '#FF9900',
-                                                   ifelse(type == "Date",'lightblue', 'grey')
+                                                   ifelse(type == "Date",'#605ca8', 'grey')
                                             )
                                      )
                               )
@@ -274,6 +274,9 @@ is.nonDate <- function(x){
 is.nonEmpty <- function(x){
   !ifelse(is.na(x),T,ifelse(x=="",T,F))
 }
+is.nonNoData <- function(x){
+  return(rep(FALSE,length(x)))
+}
 
 is.non <- function(variable,variableName,type){
   # print(paste0("is.non: type=",type,"; variableName=",variableName))
@@ -292,7 +295,7 @@ is.non <- function(variable,variableName,type){
   if (type == "Date"){
     return(is.nonDate(variable))
   }
-  return(paste0("No format for type(class) ",type," of variable ",variableName,"!"))
+  return(is.nonNoData(variable))
 }
 ## function to change the inner colors for package:formattable
 setTableStyle <- function(df,df.variableTypes){
@@ -331,13 +334,18 @@ init.variableTypes <- function(res){
 # }
 
 init.classified <- function(res){
-  # 0 : missing
-  # 1 : correct classified
-  # 2 : wrong classified
-  out <- matrix(1,ncol=NCOL(res$data),nrow=NROW(res$data))
-  out[which(is.na(res$data))]  <- 0
+  # 0 : not classified
+  # 1 : missing
+  # 10 : correct classified
+  # - : wrong classified
+  # 100 : in Monitor
+  # - : not in monitor
+  # there is a hirarchy where the lowest number has priority. 
+  # so it doesnt matter if you are not in the monitor if your class does not match or your even missing.
+  out <- matrix(0,ncol=NCOL(res$data),nrow=NROW(res$data))
+  out[which(is.na(res$data))]  <- 1
   for (i in which(res$variableTypes$class=="character")){
-    out[which(res$data[,i]==""),i]  <- 0
+    out[which(res$data[,i]==""),i]  <- 1
   }
   return(out)
 }
@@ -395,12 +403,14 @@ init.varNames <- function(res){
                         id = def.varNames.buttons[[i]]$id.part,
                         label = def.varNames.buttons[[i]]$label,
                         style = get.varNames.buttons.style(i),
-                        onclick = def.varNames.buttons[[i]]$onclick)
+                        onclick = def.varNames.buttons[[i]]$onclick)#,
+                        #title=def.varNames.buttons[[i]]$title,
+                        #"data-toggle"="tooltip")
   }
   return(out)
 }
 
-init.varNames.button <- function(name,id.part,label,color,onclick.id){
+init.varNames.button <- function(name,id.part,label,color,onclick.id,title){
   list(
     name = name,
     id.part = id.part,
@@ -409,23 +419,74 @@ init.varNames.button <- function(name,id.part,label,color,onclick.id){
     bgc = color,
     bc = "black",
     bgc.inactive = "white",
-    bc.inactive = color# 1=active, 0=inactive
+    bc.inactive = color,# 1=active, 0=inactive,
+    title = title
   )
 }
+get.title <- function(name){
+  if (name == "numeric")
+    return("Every number with a dot as the decimal seperator, e.g. 3.141 or 5.")
+  if (name == "integer")
+    return("Observed or measured hole numbers. Used for counts and discrete measurements, e.g. -3 or 10.")
+  if (name == "factor")
+    return("Nominal Data. Can be numbers or characters. Normally defining groups, e.g. 'm' and 'f'.")
+  if (name == "ordered.factor")
+    return("A factor with an underlying order e.g. an observed score.")
+  if (name == "Date")
+    return("A measured Date. Comes in many different formats.")
+  if (name == "noData")
+    return("No specific Data type! e.g. empty columns or comments.")
+  return("No tooltip set yet!")
+}
 
-def.varNames.buttons <- list(numeric = init.varNames.button("numeric","button_1_","numerical",get.typeColor("numeric"),"select_button"),
-                             integer = init.varNames.button("integer","button_2_","integer",get.typeColor("integer"),"select_button"),
-                             factor = init.varNames.button("factor","button_3_","categorical",get.typeColor("factor"),"select_button"),
-                             ordered.factor = init.varNames.button("ordered.factor","button_4_","ordinal",get.typeColor("ordered.factor"),"select_button"),
-                             Date = init.varNames.button("Date","button_5_","date",get.typeColor("Date"),"select_button"),
-                             noData = init.varNames.button("noData","button_6_","none",get.typeColor("noData"),"select_button"),
-                             Check = init.varNames.button("Check","button_7_",icon("columns"),"white","select_check"))
+def.varNames.buttons <- list(numeric = init.varNames.button(name = "numeric",
+                                                            id.part = "button_1_",
+                                                            label = "numerical",
+                                                            color = get.typeColor("numeric"),
+                                                            onclick.id = "select_button",
+                                                            title = get.title("numeric")),
+                             integer = init.varNames.button(name = "integer",
+                                                            id.part = "button_2_",
+                                                            label = "integer",
+                                                            color = get.typeColor("integer"),
+                                                            onclick.id = "select_button",
+                                                            title = get.title("integer")),
+                             factor = init.varNames.button(name = "factor",
+                                                           id.part = "button_3_",
+                                                           label = "categorical",
+                                                           color = get.typeColor("factor"),
+                                                           onclick.id = "select_button",
+                                                           title = get.title("factor")),
+                             ordered.factor = init.varNames.button(name = "ordered.factor",
+                                                                   id.part = "button_4_",
+                                                                   label = "ordinal",
+                                                                   color = get.typeColor("ordered.factor"),
+                                                                   onclick.id = "select_button",
+                                                                   title = get.title("ordered.factor")),
+                             Date = init.varNames.button(name = "Date",
+                                                         id.part = "button_5_",
+                                                         label = "date",
+                                                         color = get.typeColor("Date"),
+                                                         onclick.id = "select_button",
+                                                         title = get.title("Date")),
+                             noData = init.varNames.button(name = "noData",
+                                                           id.part = "button_6_",
+                                                           label = "none",
+                                                           color = get.typeColor("noData"),
+                                                           onclick.id = "select_button",
+                                                           title = get.title("noData")),
+                             Check = init.varNames.button(name = "Check",
+                                                          id.part = "button_7_",
+                                                          label = icon("columns"),
+                                                          color = "white",
+                                                          onclick.id = "select_check",
+                                                          title = get.title("Check")))
 
 
 get.varNames.buttons.style <- function(name,status=1){
   if (status)
     return(paste0("color: #000; background-color: ",def.varNames.buttons[[name]]$bgc,"; border-color: ",def.varNames.buttons[[name]]$bc))
-  return(paste0("color: #000; background-color: ",def.varNames.buttons[[name]]$bgc.inactive,"; border-color: ",def.varNames.buttons[[name]]$bc.inactive))
+  return(paste0("color: #888; background-color: ",def.varNames.buttons[[name]]$bgc.inactive,"; border-color: ",def.varNames.buttons[[name]]$bc.inactive))
 }
 get.newestType <- function(df.variableTypes,variableName){
   # print(df.variableTypes)

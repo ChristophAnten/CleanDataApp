@@ -47,9 +47,16 @@ exampleData.frameList <- exampleDatasetList[
           tryCatch(is.data.frame(get(x)),error=function(e)F)
         }),1]
 
+jscode <- "
+shinyjs.collapse = function(boxid) {
+$('#' + boxid).closest('.box').find('[data-widget=collapse]').click();
+}
+"
+
 # Define UI for application that draws a histogram
 dashboardPage(skin = "blue",
               useShinyjs(),
+              
               
               #/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\ START navbarPage 
               # ========================================== header ====
@@ -197,6 +204,38 @@ dashboardPage(skin = "blue",
               ),
               # ========================================== Body ====
               body = dashboardBody(
+                extendShinyjs(text = jscode),
+                # defines a new box status 'primary'
+                tags$style(HTML("
+
+
+.box.box-solid.box-primary>.box-header {
+  color:#fff;
+  background:#666666
+                    }
+
+.box.box-solid.box-primary{
+border-bottom-color:#666666;
+border-left-color:#666666;
+border-right-color:#666666;
+border-top-color:#666666;
+}
+
+                                    ")),
+                # defines a new box status 'primary'
+                tags$style(
+                HTML("
+                  .box.box-solid.box-abs>.box-header {
+                    color:#fff;
+                    background:#666666
+                  }
+                  .box.box-solid.box-primary{
+                    border-bottom-color:#666666;
+                    border-left-color:#666666;
+                    border-right-color:#666666;
+                    border-top-color:#666666;
+                  }
+                ")),
                 tabItems(
                   ####################################### 0. Information ####
                   tabItem(tabName = "panelIdInformation",
@@ -323,24 +362,59 @@ dashboardPage(skin = "blue",
                   tabItem(tabName = "panelIdDefine2",
                           fluidPage(
                             fluidRow(
-                              box(collapsible = TRUE,width = 12,
-                                  title = "Step 1: Define/Redefine Datatypes",
-                                  h5("In this Panel you need to define the datatypes expected in each varaible (column).
+                              box(
+                                collapsible = TRUE,
+                                title = "Step 1!",
+                                h5("In this Panel you need to define the datatypes expected in each varaible (column).
                       We distinguish between five different data formats and no format, which can be assigned by clicking 
-                      on the button next to the name of the varable. The five datatypes are ...")
-                              ),
-                              uiOutput("MainBody"),
-                              textOutput('myText')#,
-                            ),
-                            fluidRow(
-                              box(title = "Datatypes",width = 12,height = 400,
-                                  h5("A computer in general differentiate between the following basic types."),
-                                  uiOutput("typeInfo_numbers", container = tags$li, class = "custom-li-output"),
-                                  htmlOutput("typeInfo_integers"),
-                                  htmlOutput("typeInfo_strings"),
-                                  htmlOutput("typeInfo_factors")
+                      on the button next to the name of the varable. The five datatypes are ..."),
+                                width = 12
                               )
                             ),
+                              fluidRow(
+                                uiOutput("MainBody")
+                              ),
+                            #Valid colors are: 
+                            # red, yellow, aqua, blue, light-blue, green, navy, 
+                            # teal, olive, lime, orange, fuchsia, purple, maroon, black.
+                            box(id="infoBox_numeric",
+                                title = actionLink("infoBox_numeric_titleId", "Numerical",icon =icon("info"),
+                                                   style ="color: #fff" ), 
+                                background = "orange",#get.typeColor("integer"),
+                                solidHeader = T,
+                                width = 4, collapsible = T,collapsed = T,
+                                footer = h5(get.title("numeric"),style = "color: #000")
+                            ),
+                            box(id="infoBox_integer",
+                                title = actionLink("infoBox_integer_titleId", "Integer",icon =icon("info"),
+                                                   style ="color: #fff" ), 
+                                background = "yellow",#get.typeColor("integer"), 
+                                width = 4, collapsible = T,collapsed = T,
+                                footer = h5(get.title("integer"),style = "color: #000")
+                            ),
+                            box(id="infoBox_factor",
+                                title = actionLink("infoBox_factor_titleId", "Categorical",icon =icon("info"),
+                                                   style ="color: #fff" ), 
+                                background = "blue",  
+                                width = 4, collapsible = T,collapsed = T,
+                                footer = h5(get.title("factor"),style = "color: #000")
+                            ),
+                            box(id="infoBox_ordered",
+                                title = actionLink("infoBox_ordered_titleId", "Ordinal",icon =icon("info"),
+                                                   style ="color: #fff" ), 
+                                background = "light-blue",  
+                                width = 4, collapsible = T,collapsed = T,
+                                footer = h5(get.title("ordered.factor"),style = "color: #000")
+                            ),
+                            box(id="infoBox_Date",
+                                title = actionLink("infoBox_Date_titleId", "Date",icon =icon("info"),
+                                                   style ="color: #fff" ), 
+                                background = "purple",  
+                                width = 4, collapsible = T,collapsed = T,
+                                footer = h5(get.title("Date"),style = "color: #000")
+                            ),
+                             # textOutput('myText')#,
+                            
                             div(
                               column(
                                 1,
@@ -356,29 +430,39 @@ dashboardPage(skin = "blue",
                             )
                           )
                   ),
-                  ####################################### 3a. Explore ####
+                  ####################################### 3  Explore ####
                   tabItem(tabName = "panelIdExplore2",
                           fluidRow(
                             box(collapsible = TRUE,width = 12,
                                 title = "Step 2: Check, confirm and monitor your data.(Confirm and check for consistency.)",
                                 h5("Check: With the help of this app you will easily see if your data match your predefined datatype.
-                       Confirm: Change your data if necessary, reload and repeat check again.
-                       Monitor: Define a frame for your data. (E.g. for numerical data define the possible minimum or maximum)")
+                                   Confirm: Change your data if necessary, reload and repeat check again."),
                             ),
-                            box(width = 6,
-                                h4("This Table gives an overview over your Variable types. Clicking on a row shows a short 
-                                       summary of the selected Variable. Doubble-Clicking opens the Monitor window."),
+                            box(width = 8,
+                                h4("Overview of your Data and weather or not they are correctly classified or in th monitor."),
                                 DT::dataTableOutput("exploreVarNames")
                             ),
-                            box(width = 6,
-                                h3("Monitor Consistency definitions."),
-                                h3("some Info! Plot, table etc."),
-                                htmlOutput("explore.sidePanel")
-                            )
-                          ),
-                          fluidRow(
-                            box(width = 12,
-                                plotlyOutput("plot.tmp")
+                            column(4,
+                              box(width = 12,
+                                  title = "Monitor:",
+                                  htmlOutput("explore.sidePanel")
+                              ), 
+                              box(id="infoBox_monitor",
+                                  title = actionLink("infoBox_monitor_titleId", "Monitor",icon =icon("info"),
+                                                     style ="color: #fff" ), 
+                                  background = "navy",#get.typeColor("integer"), 
+                                  width = 12, collapsible = T,collapsed = T,
+                                  footer = h5("The task of a monitor is to check the consistency of your Data. 
+                                              This will help you detect common errors like a shifting comma or other typos. 
+                                              Here we will only set up easy, but powerfull monitors e.g. 'body height [m] must 
+                                              be greater than 0 and smaller than 3' or 'there can only be 3 different groups' 
+                                              etc..",style = "color: #000")
+                              ),
+                              # fluidRow(
+                              #   box(width = 12,
+                              #       plotlyOutput("plot.tmp")
+                              #   )
+                              # )
                             )
                           ),
                           div(

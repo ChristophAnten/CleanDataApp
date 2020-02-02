@@ -9,7 +9,7 @@
 
 library(shiny)
 
-
+btn.style.preload <- "color: #fff; background-color: #666666; border-color: #999999"
 
 # Define server logic required to draw a histogram
 shinyServer(function(input, output, session) {
@@ -83,23 +83,24 @@ shinyServer(function(input, output, session) {
     res$fileEnding <- temp$fileEnding
     res$variableTypes <- init.variableTypes(res)
     res$classified <- init.classified(res)
+    res$monitor <- init.monitor(res)
     res$varNames <- init.varNames(res)
     #temp$data <- NULL
     updateTabItems(session, "sidebarmenu", "panelIdDefine2")
     print(temp$data)
   })
   
-  output$preload.csv <- renderUI({req(temp$data)
-    actionButton("actionButton.preload.xlsx","Accept Data!",icon = icon("file-upload"),width = "100%")})
-  
-  output$preload.base <- renderUI({req(temp$data)
-    actionButton("actionButton.preload.csv","Accept Data!",icon = icon("file-upload"),width = "100%")})
+  output$preload.xlsx <- renderUI({req(temp$data)
+    actionButton("actionButton.preload.xlsx","Accept Data!",icon = icon("file-upload"),width = "100%", style = btn.style.preload)})
   
   output$preload.csv <- renderUI({req(temp$data)
-    actionButton("actionButton.preload.base","Accept Data!",icon = icon("file-upload"),width = "100%")})
+    actionButton("actionButton.preload.csv","Accept Data!",icon = icon("file-upload"),width = "100%", style = btn.style.preload)})
   
   output$preload.base <- renderUI({req(temp$data)
-    actionButton("actionButton.preload.RNG","Accept Data!",icon = icon("file-upload"),width = "100%")})
+    actionButton("actionButton.preload.base","Accept Data!",icon = icon("file-upload"),width = "100%", style = btn.style.preload)})
+  
+  output$preload.RNG <- renderUI({req(temp$data)
+    actionButton("actionButton.preload.RNG","Accept Data!",icon = icon("file-upload"),width = "100%", style = btn.style.preload)})
   
   observeEvent(input$actionButton.preload.xlsx,{
     temp.to.res()
@@ -327,10 +328,13 @@ shinyServer(function(input, output, session) {
 
   
   output$MainBody=renderUI({
-    fluidPage(
-      h3("progressbar"),
+    box(width=12,
       DT::dataTableOutput("data"),
-      textOutput('myText')
+      div(paste0("Variables defined: ",sum(res$variableTypes$set!=0),"/",NCOL(res$data))),
+      prgoressBar(sum(res$variableTypes$set!=0)/NCOL(res$data)*100, color = "green", striped = TRUE, active = TRUE, size = "sm")
+      
+      
+      # textOutput('myText')
     )})
   
   # myValue <- reactiveValues(employee = '')
@@ -449,6 +453,10 @@ shinyServer(function(input, output, session) {
       res$classified[,selectedRow] <- res$classified[,selectedRow] +
         10 * is.non(res$data[,selectedRow],"varName!",names(def.varNames.buttons)[res$variableTypes$set[selectedRow]])
       
+      if (selectedCol == 6){
+        res$variableTypes$hasMonitor[selectedRow] = NA
+      }
+      
       res$variableTypes$nMissing[selectedRow] <- sum(is.missing(res$data[,selectedRow]))
       res$variableTypes$nInClass[selectedRow] <- sum(is.non(res$data[,selectedRow],"varName!",names(def.varNames.buttons)[res$variableTypes$set[selectedRow]]))
       res$variableTypes$nInMonitor[selectedRow] <- NA
@@ -526,7 +534,29 @@ shinyServer(function(input, output, session) {
   observeEvent(input$accept_monitor,{
     print(input$exploreVarNames_rows_selected) 
     
+    # update hasMonitor
+    res$variableTypes$hasMonitor[input$exploreVarNames_rows_selected] = TRUE
+    
+    # generate actual monitor
+    if (res$variableTypes$set[input$exploreVarNames_rows_selected] == 1){
+      res$monitor[[res$variableTypes$Variables[input$exploreVarNames_rows_selected]]]$decimal = input$decimal
+      res$monitor[[res$variableTypes$Variables[input$exploreVarNames_rows_selected]]]$minimum = 
+        ifelse(is.na(input$min_numeric),-Inf,input$min_numeric)
+      res$monitor[[res$variableTypes$Variables[input$exploreVarNames_rows_selected]]]$maximum = 
+        ifelse(is.na(input$max_numeric),Inf,input$max_numeric)
+      print(res$monitor[[res$variableTypes$Variables[input$exploreVarNames_rows_selected]]])
+    }
+    if (res$variableTypes$set[input$exploreVarNames_rows_selected] == 2){
+      res$monitor[[res$variableTypes$Variables[input$exploreVarNames_rows_selected]]]$minimum = 
+        ifelse(is.na(input$min_integer),-Inf,input$min_integer)
+      res$monitor[[res$variableTypes$Variables[input$exploreVarNames_rows_selected]]]$maximum = 
+        ifelse(is.na(input$max_integer),Inf,input$max_integer)
+      print(res$monitor[[res$variableTypes$Variables[input$exploreVarNames_rows_selected]]])
+    }
+      
   })
+  
+  output$out1 <- renderPrint(head(res$data[!is.na(res$data[,input$exploreVarNames_rows_selected]),input$exploreVarNames_rows_selected],5))
   
   explore.rightPanel <- function(set){
     if (set==0){
@@ -557,23 +587,28 @@ shinyServer(function(input, output, session) {
       out <- list(
         column(6,numericInput("min_integer","minimum",-Inf)),
         column(6,numericInput("max_integer","maximum",Inf)),
-        tags$hr(),
-        column(12,
-               actionButton("accept_monitor_integer","Accept Monitor!",width = "100%")
-        )
+        column(12,h5("If there is no limit, enter nothing."))
       )
     }
     if (set==3){ # cateforial
-      out <- list(h3("Define the correct classes"))
+      out <- list(
+        h3("Define the correct classes"),
+        selectInput('in3', 'Options', unique(res$data[,input$exploreVarNames_rows_selected]), multiple=TRUE, selectize=FALSE)
+      )
     }
     if (set==4){ # ordered factor
       out <- list(h3("Define the correct classes"),
-                  h3("And order."))
+                  h3("And order."),
+                  selectInput('in3', 'Options', unique(res$data[,input$exploreVarNames_rows_selected]), multiple=TRUE, selectize=FALSE))
     }
     if (set==5){ # date
       out <- list(
-        h3("Define date format. If they are only numbers e.g. 492933 then write: dddd"),
-        textInput("textinput","date format","e.g. dd.mm.yy")
+        h5("The first five dates are recognized as follows:"),
+        verbatimTextOutput('out1'),
+        h5("Define date format. If they are only numbers e.g. 492933 then write: dddd and define a Origin"),
+        textInput("textinput","date format","e.g. dd.mm.yy"),
+        h5("Some software saves dates by a different origin. check your dates and consider updating the origin."),
+        dateInput("origin","Origin:", "1900-01-01")
       )
     }
     if (set==6){

@@ -320,6 +320,7 @@ setTableStyle <- function(df,df.variableTypes){
 init.variableTypes <- function(res){
   return(data.frame(get.typesDf(res$data),
                     set = 0,
+                    hasMonitor = FALSE, # can be NA, TRUE and FALSE
                     changed = FALSE,
                     changedTo = NA,
                     nMissing = NA,
@@ -332,6 +333,17 @@ init.variableTypes <- function(res){
 #   res$variableTypes$set
 #   names(def.varNames.buttons)
 # }
+
+init.monitor <- function(res){
+  out <- list()
+  for(i in colnames(res$data)){
+    print("a")
+    out[[i]] <- list("isSet" = 0)
+  }
+  return(out)
+}
+
+
 
 init.classified <- function(res){
   # 0 : not classified
@@ -349,6 +361,7 @@ init.classified <- function(res){
   }
   return(out)
 }
+
 init.varNames.kannWeg <- function(res){
   return(
     data.frame(
@@ -423,6 +436,7 @@ init.varNames.button <- function(name,id.part,label,color,onclick.id,title){
     title = title
   )
 }
+
 get.title <- function(name){
   if (name == "numeric")
     return("Every number with a dot as the decimal seperator, e.g. 3.141 or 5.")
@@ -482,12 +496,12 @@ def.varNames.buttons <- list(numeric = init.varNames.button(name = "numeric",
                                                           onclick.id = "select_check",
                                                           title = get.title("Check")))
 
-
 get.varNames.buttons.style <- function(name,status=1){
   if (status)
     return(paste0("color: #000; background-color: ",def.varNames.buttons[[name]]$bgc,"; border-color: ",def.varNames.buttons[[name]]$bc))
   return(paste0("color: #888; background-color: ",def.varNames.buttons[[name]]$bgc.inactive,"; border-color: ",def.varNames.buttons[[name]]$bc.inactive))
 }
+
 get.newestType <- function(df.variableTypes,variableName){
   # print(df.variableTypes)
   # print(variableName)
@@ -575,4 +589,37 @@ unToggle <- function(res.varNames,row,nCol,origin = 2){
   }
   return(res.varNames)
   #print( res$varNames)
+}
+
+prgoressBar <- function(value = 0, label = FALSE, color = "aqua", size = NULL,
+                        striped = FALSE, active = FALSE, vertical = FALSE) {
+  stopifnot(is.numeric(value))
+  if (value < 0 || value > 100)
+    stop("'value' should be in the range from 0 to 100.", call. = FALSE)
+  if (!(color %in% shinydashboard:::validColors || color %in% shinydashboard:::validStatuses))
+    stop("'color' should be a valid status or color.", call. = FALSE)
+  if (!is.null(size))
+    size <- match.arg(size, c("sm", "xs", "xxs"))
+  text_value <- paste0(value, "%")
+  if (vertical)
+    style <- htmltools::css(height = text_value, `min-height` = "2em")
+  else
+    style <- htmltools::css(width = text_value, `min-width` = "2em")
+  tags$div(
+    class = "progress",
+    class = if (!is.null(size)) paste0("progress-", size),
+    class = if (vertical) "vertical",
+    class = if (active) "active",
+    tags$div(
+      class = "progress-bar",
+      class = paste0("progress-bar-", color),
+      class = if (striped) "progress-bar-striped",
+      style = style,
+      role = "progressbar",
+      `aria-valuenow` = value,
+      `aria-valuemin` = 0,
+      `aria-valuemax` = 100,
+      tags$span(class = if (!label) "sr-only", text_value)
+    )
+  )
 }

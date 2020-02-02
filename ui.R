@@ -29,7 +29,9 @@ library(plotly)
 
 source("languageE.R")
 
-btn.style.nextPrev <- "color: #fff; background-color: #337ab7; border-color: #2e6da4"
+btn.style.nextPrev <- "color: #fff; background-color: #666666; border-color: #999999"
+btn.style.next <- "color: #fff; background-color: #666666; border-color: #999999"
+btn.style.prev <- "color: #fff; background-color: #666666; border-color: #999999"
 
 convertMenuItem <- function(mi,tabName) {
   mi$children[[1]]$attribs['data-toggle']="tab"
@@ -329,6 +331,8 @@ border-top-color:#666666;
                   ####################################### 1. Get data ####
                   tabItem(tabName = "panelSubIdxlsx",
                           box(title = "Preview:",width = 12,
+                              status = "primary",
+                              solidHeader = TRUE,
                               DT::dataTableOutput("contents.xlsx",width = "100%"),
                               tags$hr(),
                               uiOutput("preload.xlsx")
@@ -336,6 +340,8 @@ border-top-color:#666666;
                   ),
                   tabItem(tabName = "panelSubIdcsv",
                           box(title = "Preview:",width = 12,
+                              status = "primary",
+                              solidHeader = TRUE,
                               DT::dataTableOutput("contents.csv",width = "100%"),
                               tags$hr(),
                               uiOutput("preload.csv")
@@ -346,6 +352,8 @@ border-top-color:#666666;
                   ),
                   tabItem(tabName = "RDatabase",
                           box(title = "Preview:",width = 12,
+                              status = "primary",
+                              solidHeader = TRUE,
                               DT::dataTableOutput("contents.RDat",width = "100%"),
                               tags$hr(),
                               uiOutput("preload.base")
@@ -353,6 +361,8 @@ border-top-color:#666666;
                   ),
                   tabItem(tabName = "panelSubIdRNG",
                           box(title = "Preview:",width = 12,
+                              status = "primary",
+                              solidHeader = TRUE,
                               DT::dataTableOutput("contents.RNG",width = "100%"),
                               tags$hr(),
                               uiOutput("preload.RNG")
@@ -363,8 +373,10 @@ border-top-color:#666666;
                           fluidPage(
                             fluidRow(
                               box(
+                                title = "Step 1: Define datatypes.",
                                 collapsible = TRUE,
-                                title = "Step 1!",
+                                status = "primary",
+                                solidHeader = T,
                                 h5("In this Panel you need to define the datatypes expected in each varaible (column).
                       We distinguish between five different data formats and no format, which can be assigned by clicking 
                       on the button next to the name of the varable. The five datatypes are ..."),
@@ -417,13 +429,16 @@ border-top-color:#666666;
                             
                             div(
                               column(
-                                1,
-                                offset=1
+                                4,
+                                offset=1,
+                                actionButton("me","only Continue buttons!!!??",
+                                             width="100%")
                               ),
                               column(
-                                1,
-                                offset=8,
-                                actionButton("next.panelIdDefine2",NULL,
+                                4,
+                                offset=2,
+                                actionButton("next.panelIdDefine2","Continue",
+                                             width="100%",
                                              icon = icon("angle-double-right"),
                                              onclick = 'Shiny.onInputChange(\"btn_nextTab\",  this.id)',
                                              style = btn.style.nextPrev))
@@ -433,8 +448,11 @@ border-top-color:#666666;
                   ####################################### 3  Explore ####
                   tabItem(tabName = "panelIdExplore2",
                           fluidRow(
-                            box(collapsible = TRUE,width = 12,
-                                title = "Step 2: Check, confirm and monitor your data.(Confirm and check for consistency.)",
+                            box(title = "Step 2: Monitor your data.",
+                                width = 12,
+                                collapsible = TRUE,
+                                status = "primary",
+                                solidHeader = T,
                                 h5("Check: With the help of this app you will easily see if your data match your predefined datatype.
                                    Confirm: Change your data if necessary, reload and repeat check again."),
                             ),
@@ -467,17 +485,19 @@ border-top-color:#666666;
                           ),
                           div(
                             column(
-                              1,
+                              4,
                               offset=1,
-                              actionButton("prev.panelIdExplore2",NULL,
+                              actionButton("prev.panelIdExplore2","Previous",
+                                           width = "100%",
                                            icon = icon("angle-double-left"),
                                            onclick = 'Shiny.onInputChange(\"btn_prevTab\",  this.id)',
                                            style = btn.style.nextPrev)),
                             
                             column(
-                              1,
-                              offset=8,
-                              actionButton("next.panelIdExplore2",NULL,
+                              4,
+                              offset=2,
+                              actionButton("next.panelIdExplore2","Continue",
+                                           width = "100%",
                                            icon = icon("angle-double-right"),
                                            onclick = 'Shiny.onInputChange(\"btn_nextTab\",  this.id)',
                                            style = btn.style.nextPrev))
@@ -500,17 +520,19 @@ border-top-color:#666666;
                           ),
                           div(
                             column(
-                              1,
+                              4,
                               offset=1,
-                              actionButton("prev.panelIdOverview",NULL,
+                              actionButton("prev.panelIdOverview","Previous",
+                                           width="100%",
                                            icon = icon("angle-double-left"),
                                            onclick = 'Shiny.onInputChange(\"btn_prevTab\",  this.id)',
                                            style = btn.style.nextPrev)),
                             
                             column(
-                              1,
-                              offset=8,
-                              actionButton("next.panelIdOverview",NULL,
+                              4,
+                              offset=2,
+                              actionButton("next.panelIdOverview","Continue",
+                                           width="100%",
                                            icon = icon("angle-double-right"),
                                            onclick = 'Shiny.onInputChange(\"btn_nextTab\",  this.id)',
                                            style = btn.style.nextPrev))
@@ -538,15 +560,16 @@ border-top-color:#666666;
                     ),
                     div(
                       column(
-                        1,
+                        4,
                         offset=1,
-                        actionButton("prev.panelIdEvaluation",NULL,
+                        actionButton("prev.panelIdEvaluation","Previous",
+                                     width="100%",
                                      icon = icon("angle-double-left"),
                                      onclick = 'Shiny.onInputChange(\"btn_prevTab\",  this.id)',
                                      style = btn.style.nextPrev)),
                       column(
-                        1,
-                        offset=8)
+                        4,
+                        offset=2)
                     )
                   )
                   ############################################ END Body ####

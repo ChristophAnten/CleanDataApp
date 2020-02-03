@@ -536,7 +536,6 @@ setToType <- function(set){
     )
   )
 }
-?switch
 
 # update.classified <- function(variableName,df.classified){
 #   df.classified[,variableName] <- is.non()

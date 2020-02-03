@@ -62,7 +62,7 @@ dashboardPage(skin = "blue",
               
               #/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\ START navbarPage 
               # ========================================== header ====
-              header = dashboardHeader(title = "Nice.Data",
+              header = dashboardHeader(title = "Clean Data",
                                        dropdownMenuOutput("menu")
               ),
               # ========================================== Sidebar ====
@@ -208,25 +208,8 @@ dashboardPage(skin = "blue",
               body = dashboardBody(
                 extendShinyjs(text = jscode),
                 # defines a new box status 'primary'
-#                 tags$style(HTML("
-# 
-# 
-# .box.box-solid.box-primary>.box-header {
-#   color:#fff;
-#   background:#666666
-#                     }
-# 
-# .box.box-solid.box-primary{
-# border-bottom-color:#666666;
-# border-left-color:#666666;
-# border-right-color:#666666;
-# border-top-color:#666666;
-# }
-# 
-#                                     ")),
-                # defines a new box status 'primary'
                 tags$style(
-                HTML("
+                  HTML("
                   .box.box-solid.box-primary>.box-header {
                     color:#fff;
                     background:#666666
@@ -254,10 +237,17 @@ dashboardPage(skin = "blue",
                     border-top-color:#001F3F;
                   }
                 ")),
+                # change color black
+                tags$style(
+                  type = 'text/css', 
+                  '.bg-black {background-color: #666666!important; }'
+                ),
                 tabItems(
                   ####################################### 0. Information ####
                   tabItem(tabName = "panelIdInformation",
-                          fluidRow(
+                          fluidRow(   
+                            # orderInput("a","a",LETTERS[1:10],connect ="b"),
+                            # orderInput("b","b",NULL,connect = "a",placeholder = 'Drag items here...'),
                             dropdownButton(
                               actionButton("a","a"),
                               actionButton("a","a"),
@@ -399,65 +389,77 @@ dashboardPage(skin = "blue",
                                 width = 12
                               )
                             ),
-                              fluidRow(
-                                uiOutput("MainBody")
-                              ),
+                            fluidRow(
+                              uiOutput("MainBody")
+                            ),
                             #Valid colors are: 
                             # red, yellow, aqua, blue, light-blue, green, navy, 
                             # teal, olive, lime, orange, fuchsia, purple, maroon, black.
-                            box(id="infoBox_numeric",
-                                title = actionLink("infoBox_numeric_titleId", "Numerical",icon =icon("info"),
-                                                   style ="color: #fff" ), 
-                                background = "orange",#get.typeColor("integer"),
-                                solidHeader = T,
-                                width = 4, collapsible = T,collapsed = T,
-                                footer = h5(get.title("numeric"),style = "color: #000")
-                            ),
-                            box(id="infoBox_integer",
-                                title = actionLink("infoBox_integer_titleId", "Integer",icon =icon("info"),
-                                                   style ="color: #fff" ), 
-                                background = "yellow",#get.typeColor("integer"), 
-                                width = 4, collapsible = T,collapsed = T,
-                                footer = h5(get.title("integer"),style = "color: #000")
-                            ),
-                            box(id="infoBox_factor",
-                                title = actionLink("infoBox_factor_titleId", "Categorical",icon =icon("info"),
-                                                   style ="color: #fff" ), 
-                                background = "blue",  
-                                width = 4, collapsible = T,collapsed = T,
-                                footer = h5(get.title("factor"),style = "color: #000")
-                            ),
-                            box(id="infoBox_ordered",
-                                title = actionLink("infoBox_ordered_titleId", "Ordinal",icon =icon("info"),
-                                                   style ="color: #fff" ), 
-                                background = "light-blue",  
-                                width = 4, collapsible = T,collapsed = T,
-                                footer = h5(get.title("ordered.factor"),style = "color: #000")
-                            ),
-                            box(id="infoBox_Date",
-                                title = actionLink("infoBox_Date_titleId", "Date",icon =icon("info"),
-                                                   style ="color: #fff" ), 
-                                background = "purple",  
-                                width = 4, collapsible = T,collapsed = T,
-                                footer = h5(get.title("Date"),style = "color: #000")
-                            ),
-                             # textOutput('myText')#,
-                            
-                            div(
-                              column(
-                                4,
-                                offset=1,
-                                actionButton("me","only Continue buttons!!!??",
-                                             width="100%")
-                              ),
-                              column(
-                                4,
-                                offset=2,
-                                actionButton("next.panelIdDefine2","Continue",
-                                             width="100%",
-                                             icon = icon("angle-double-right"),
-                                             onclick = 'Shiny.onInputChange(\"btn_nextTab\",  this.id)',
-                                             style = btn.style.nextPrev))
+                            column(4,
+                                   box(id="infoBox_numeric",
+                                       title = actionLink("infoBox_numeric_titleId", "Numerical",icon =icon("info"),
+                                                          style ="color: #fff" ), 
+                                       background = "orange",#get.typeColor("integer"),
+                                       solidHeader = T,
+                                       width = "100%", collapsible = T,collapsed = T,
+                                       footer = h5(get.title("numeric"),style = "color: #000")
+                                   ),
+                                   box(id="infoBox_integer",
+                                       title = actionLink("infoBox_integer_titleId", "Integer",icon =icon("info"),
+                                                          style ="color: #fff" ), 
+                                       background = "yellow",#get.typeColor("integer"), 
+                                       width = "100%", collapsible = T,collapsed = T,
+                                       footer = h5(get.title("integer"),style = "color: #000")
+                                   )),
+                            column(4,
+                                   box(id="infoBox_factor",
+                                       title = actionLink("infoBox_factor_titleId", "Categorical",icon =icon("info"),
+                                                          style ="color: #fff" ), 
+                                       background = "blue",  
+                                       width = "100%", collapsible = T,collapsed = T,
+                                       footer = h5(get.title("factor"),style = "color: #000")
+                                   ),
+                                   box(id="infoBox_ordered",
+                                       title = actionLink("infoBox_ordered_titleId", "Ordinal",icon =icon("info"),
+                                                          style ="color: #fff" ), 
+                                       background = "light-blue",  
+                                       width = "100%", collapsible = T,collapsed = T,
+                                       footer = h5(get.title("ordered.factor"),style = "color: #000")
+                                   )),
+                            column(4,
+                                   box(id="infoBox_Date",
+                                       title = actionLink("infoBox_Date_titleId", "Date",icon =icon("info"),
+                                                          style ="color: #fff" ), 
+                                       background = "purple",  
+                                       width = "100%", collapsible = T,collapsed = T,
+                                       footer = h5(get.title("Date"),style = "color: #000")
+                                   ),
+                                   box(id="infoBox_none",
+                                       title = actionLink("infoBox_none_titleId", "None",icon =icon("info"),
+                                                          style ="color: #fff" ), 
+                                       background = "black",  
+                                       width = "100%", collapsible = T,collapsed = T,
+                                       footer = h5(get.title("noData"),style = "color: #000")
+                                   )),
+                            # textOutput('myText')#,
+                            column(12,
+                              
+                              div(
+                                column(
+                                  4,
+                                  offset=1,
+                                  actionButton("me","only Continue buttons!!!??",
+                                               width="100%")
+                                ),
+                                column(
+                                  4,
+                                  offset=2,
+                                  actionButton("next.panelIdDefine2","Continue",
+                                               width="100%",
+                                               icon = icon("angle-double-right"),
+                                               onclick = 'Shiny.onInputChange(\"btn_nextTab\",  this.id)',
+                                               style = btn.style.nextPrev))
+                              )
                             )
                           )
                   ),
@@ -592,7 +594,8 @@ dashboardPage(skin = "blue",
                     )
                   )
                   ############################################ END Body ####
-                )
+                ),
+                sortable_js("selectInput_acceptedLevels")
                 
               )
 )

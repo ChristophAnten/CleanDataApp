@@ -49,6 +49,10 @@ shinyServer(function(input, output, session) {
   res$filePath <- "/noPath"
   res$fileEnding <- ".noEnding"
   
+  exploreVariables_previousSelection <- NULL
+  exploreVariables_previousPage <- NULL
+  
+  defineVariables_previousPage <- NULL
   
   # Create a Progress object
   progress_defineVar <- shiny::Progress$new()
@@ -325,6 +329,9 @@ shinyServer(function(input, output, session) {
   observeEvent(input$infoBox_Date_titleId, {
     js$collapse("infoBox_Date")
   })
+  observeEvent(input$infoBox_Date_titleId, {
+    js$collapse("infoBox_none")
+  })
 
   
   output$MainBody=renderUI({
@@ -368,18 +375,20 @@ shinyServer(function(input, output, session) {
   output$data <- DT::renderDataTable(
     {
       req(res$varNames)
+      DT::datatable(
       # print(res$varNames)
       res$varNames %>% 
-        `colnames<-`(letters[1:NCOL(res$varNames)])
-    }, 
-    # server = F, 
-    escape = F,
-    selection = 'none',  
-    extensions = "FixedColumns",
-    options = list(#scrollY = '400px',
-                   scrollX = TRUE,
-                   paging = F,
-                   fixedColumns = list(leftColumns = 2))
+        `colnames<-`(letters[1:NCOL(res$varNames)]),
+      # server = F, 
+      escape = F,
+      selection = 'none',  
+      extensions = "FixedColumns",
+      options = list(#scrollY = '400px',
+        scrollX = TRUE,
+        # paging = F,
+        displayStart = defineVariables_previousPage,
+        fixedColumns = list(leftColumns = 2)))
+    }
   ) 
   # tooltip = tooltipOptions(title = "Click to see inputs !")
   
@@ -443,6 +452,8 @@ shinyServer(function(input, output, session) {
     print("input$select_button")
     # print(input$select_button)
     # print(res$varNames)
+    defineVariables_previousPage <<- input$data_rows_current[1] - 1
+    print(defineVariables_previousPage)
     selectedRow <- as.numeric(strsplit(input$select_button, "_")[[1]][3])
     selectedCol <- as.numeric(strsplit(input$select_button, "_")[[1]][2])
     # print(res$varNames)
@@ -459,7 +470,10 @@ shinyServer(function(input, output, session) {
       
       if (selectedCol == 6){
         res$variableTypes$hasMonitor[selectedRow] = NA
+      } else {
+        res$variableTypes$hasMonitor[selectedRow] = FALSE
       }
+      
       ### if direct switch reset monitor!!!???xxx
       res$variableTypes$nMissing[selectedRow] <- sum(is.missing(res$data[,selectedRow]))
       res$variableTypes$nInClass[selectedRow] <- sum(is.non(res$data[,selectedRow],"varName!",names(def.varNames.buttons)[res$variableTypes$set[selectedRow]]))
@@ -473,6 +487,8 @@ shinyServer(function(input, output, session) {
       ## Check if monitor is still active! xxx!!!???
       res$variableTypes$hasMonitor[selectedRow] = FALSE
       res$classified[,selectedRow] <- res$classified[,selectedRow] %% 10
+      
+      res$variableTypes$hasMonitor[selectedRow] = FALSE
       
       res$variableTypes$nMissing[selectedRow] <- NA
       res$variableTypes$nInClass[selectedRow] <- NA
@@ -517,24 +533,33 @@ shinyServer(function(input, output, session) {
   output$exploreVarNames <- DT::renderDataTable(
     {
       req(res$data)
+      DT::datatable(
       data.frame(variable = colnames(res$data),
                  type=setToType(res$variableTypes$set), 
                  monitor = res$variableTypes$hasMonitor, # set TRUE/FALSE
                  nMissing = ifelse(is.na(res$variableTypes$nMissing),NA,
-                                   sprintf("%i of %i",res$variableTypes$nMissing,res$n)),
+                                   sprintf("%i of %i",res$variableTypes$nMissing,NROW(res$data))),
                  nWrongClass = ifelse(is.na(res$variableTypes$nInClass),NA,
-                                      sprintf("%i of %i",res$variableTypes$nInClass,res$n-res$variableTypes$nMissing)),
+                                      sprintf("%i of %i",res$variableTypes$nInClass,NROW(res$data)-res$variableTypes$nMissing)),
                  nNotInMonitor = ifelse(is.na(res$variableTypes$nInMonitor),NA,
-                                        sprintf("%i of %i",res$variableTypes$nInMonitor,
-                                                res$n-res$variableTypes$nMissing-res$variableTypes$nInClass))
-                 )
-    },
-    selection = 'single',  
+                                        sprintf("%i of %i",NROW(res$data)-res$variableTypes$nMissing-res$variableTypes$nInClass-res$variableTypes$nInMonitor,
+                                                NROW(res$data)-res$variableTypes$nMissing-res$variableTypes$nInClass))
+                 ),
+      extensions = "FixedColumns",
+      selection = list(mode = "single", target = "row", selected = exploreVariables_previousSelection),
+      options = list(#scrollY = '400px',
+        scrollX = TRUE,
+        # paging = F,
+        displayStart = exploreVariables_previousPage
+        #fixedColumns = list(leftColumns = 2)))
+      ))
+    }
     #extensions = "FixedColumns",
-    options = list(scrollX =TRUE)
   )
   
   observeEvent(input$exploreVarNames_rows_selected, {
+    exploreVariables_previousPage <<- input$exploreVarNames_rows_current[1] - 1
+    exploreVariables_previousSelection <<- input$exploreVarNames_rows_selected
     print("res$variableTypes")
     #print(res$variableTypes)
     print("names(def.varNames.buttons)[res$variableTypes$set]")
@@ -560,35 +585,102 @@ shinyServer(function(input, output, session) {
     
     # generate actual monitor
     if (res$variableTypes$set[input$exploreVarNames_rows_selected] == 1){
+      
+      # update monitor
       res$monitor[[res$variableTypes$Variables[input$exploreVarNames_rows_selected]]]$decimal = input$decimal
       res$monitor[[res$variableTypes$Variables[input$exploreVarNames_rows_selected]]]$minimum = 
         ifelse(is.na(input$min_numeric),-Inf,input$min_numeric)
       res$monitor[[res$variableTypes$Variables[input$exploreVarNames_rows_selected]]]$maximum = 
         ifelse(is.na(input$max_numeric),Inf,input$max_numeric)
-      print(res$monitor[[res$variableTypes$Variables[input$exploreVarNames_rows_selected]]])
+      # print(res$monitor[[res$variableTypes$Variables[input$exploreVarNames_rows_selected]]])
       
       # update calssified
       # need to unclassifie if change of class!
       res$classified[,input$exploreVarNames_rows_selected] <-
-        res$classified[,input$exploreVarNames_rows_selected] + 100 *
+        res$classified[,input$exploreVarNames_rows_selected] %% 100 + 100 *
         (res$data[,input$exploreVarNames_rows_selected] > res$monitor[[res$variableTypes$Variables[input$exploreVarNames_rows_selected]]]$minimum) *
         (res$data[,input$exploreVarNames_rows_selected] < res$monitor[[res$variableTypes$Variables[input$exploreVarNames_rows_selected]]]$maximum)
       
-      ## check if in class!
+      ## update nNotInMonitor
       res$variableTypes$nInMonitor[input$exploreVarNames_rows_selected] <-
         sum(floor(res$classified[,input$exploreVarNames_rows_selected] / 100))
     }
     if (res$variableTypes$set[input$exploreVarNames_rows_selected] == 2){
+      
+      # update monitor
       res$monitor[[res$variableTypes$Variables[input$exploreVarNames_rows_selected]]]$minimum = 
         ifelse(is.na(input$min_integer),-Inf,input$min_integer)
       res$monitor[[res$variableTypes$Variables[input$exploreVarNames_rows_selected]]]$maximum = 
         ifelse(is.na(input$max_integer),Inf,input$max_integer)
-      print(res$monitor[[res$variableTypes$Variables[input$exploreVarNames_rows_selected]]])
-    }
+      # print(res$monitor[[res$variableTypes$Variables[input$exploreVarNames_rows_selected]]])
       
+      # update calssified
+      # need to unclassifie if change of class!
+      res$classified[,input$exploreVarNames_rows_selected] <-
+        res$classified[,input$exploreVarNames_rows_selected] %% 100 + 100 *
+        (res$data[,input$exploreVarNames_rows_selected] > res$monitor[[res$variableTypes$Variables[input$exploreVarNames_rows_selected]]]$minimum) *
+        (res$data[,input$exploreVarNames_rows_selected] < res$monitor[[res$variableTypes$Variables[input$exploreVarNames_rows_selected]]]$maximum)
+      
+      ## update nNotInMonitor
+      res$variableTypes$nInMonitor[input$exploreVarNames_rows_selected] <-
+        sum(floor(res$classified[,input$exploreVarNames_rows_selected] / 100))
+    }
+    if (res$variableTypes$set[input$exploreVarNames_rows_selected] == 3){
+      
+      # update monitor
+      # print("################################-------##############################################")
+      # print(res$monitor[[res$variableTypes$Variables[input$exploreVarNames_rows_selected]]])
+      # print( res$data[,input$exploreVarNames_rows_selected])
+      # print( res$monitor[[res$variableTypes$Variables[input$exploreVarNames_rows_selected]]]$acceptedLevels)
+      # update calssified
+      res$classified[,input$exploreVarNames_rows_selected] <-
+        res$classified[,input$exploreVarNames_rows_selected] %% 100 + 100 *
+        res$data[,input$exploreVarNames_rows_selected] %in% 
+        res$monitor[[res$variableTypes$Variables[input$exploreVarNames_rows_selected]]]$acceptedLevels
+      
+      
+      # update nNotInMonitor
+      res$variableTypes$nInMonitor[input$exploreVarNames_rows_selected] <-
+        sum(floor(res$classified[,input$exploreVarNames_rows_selected] / 100))
+      
+    }
+    
+    if (res$variableTypes$set[input$exploreVarNames_rows_selected] == 4){
+      
+      # update monitor
+      # update calssified
+      # update nNotInMonitor
+    }
+    
+    if (res$variableTypes$set[input$exploreVarNames_rows_selected] == 5){
+      
+      # update monitor
+      # update calssified
+      # update nNotInMonitor
+    }
   })
   
-  output$out1 <- renderPrint(head(res$data[!is.na(res$data[,input$exploreVarNames_rows_selected]),input$exploreVarNames_rows_selected],5))
+  output$out1 <- renderPrint(head(res$data[!is.missing(res$data[,input$exploreVarNames_rows_selected]),input$exploreVarNames_rows_selected],5))
+  
+  observeEvent(input$acceptLevels,{
+    res$monitor[[res$variableTypes$Variables[input$exploreVarNames_rows_selected]]]$acceptedLevels <- 
+      c(res$monitor[[res$variableTypes$Variables[input$exploreVarNames_rows_selected]]]$acceptedLevels,
+        input$selectInput_defineLevels)
+    res$monitor[[res$variableTypes$Variables[input$exploreVarNames_rows_selected]]]$declinedLevels <- 
+      res$monitor[[res$variableTypes$Variables[input$exploreVarNames_rows_selected]]]$declinedLevels[
+        -which(res$monitor[[res$variableTypes$Variables[input$exploreVarNames_rows_selected]]]$declinedLevels %in% 
+                 input$selectInput_defineLevels )]
+  })
+  
+  observeEvent(input$removeLevels,{
+    res$monitor[[res$variableTypes$Variables[input$exploreVarNames_rows_selected]]]$declinedLevels <- 
+      c(res$monitor[[res$variableTypes$Variables[input$exploreVarNames_rows_selected]]]$declinedLevels,
+        input$selectInput_acceptedLevels)
+    res$monitor[[res$variableTypes$Variables[input$exploreVarNames_rows_selected]]]$acceptedLevels <- 
+      res$monitor[[res$variableTypes$Variables[input$exploreVarNames_rows_selected]]]$acceptedLevels[
+        -which(res$monitor[[res$variableTypes$Variables[input$exploreVarNames_rows_selected]]]$acceptedLevels %in% 
+                 input$selectInput_acceptedLevels )]
+  })
   
   explore.rightPanel <- function(set){
     if (set==0){
@@ -634,11 +726,20 @@ shinyServer(function(input, output, session) {
         column(12,h5("If there is no limit, enter nothing."))
       )
     }
-    if (set==3){ # cateforial
+    if (set==3){ # categorial
+      if (is.null(res$monitor[[res$variableTypes$Variables[input$exploreVarNames_rows_selected]]]$acceptedLevels) & 
+          is.null(res$monitor[[res$variableTypes$Variables[input$exploreVarNames_rows_selected]]]$declinedLevels)){
+          res$monitor[[res$variableTypes$Variables[input$exploreVarNames_rows_selected]]]$declinedLevels <-
+            unique(res$data[!is.missing(res$data[,input$exploreVarNames_rows_selected]),
+                            input$exploreVarNames_rows_selected])
+          res$monitor[[res$variableTypes$Variables[input$exploreVarNames_rows_selected]]]$acceptedLevels <- NULL
+        }
       out <- list(
         h4("Define the correct levels"),
         # checkboxGroupInput('in3', NULL, unique(res$data[,input$exploreVarNames_rows_selected]))
-        selectInput('in3', NULL, unique(res$data[,input$exploreVarNames_rows_selected]), multiple=TRUE, selectize=FALSE),
+        selectInput('selectInput_defineLevels', "All levels:", 
+                    res$monitor[[res$variableTypes$Variables[input$exploreVarNames_rows_selected]]]$declinedLevels, 
+                    multiple=TRUE, selectize=FALSE),
         fluidRow(
           column(6,
         actionButton("acceptLevels","Accept",icon = icon("angle-down"),width = "100%")
@@ -646,20 +747,28 @@ shinyServer(function(input, output, session) {
         column(6,
                 actionButton("removeLevels","Remove",icon = icon("angle-up"),width = "100%")
                )),
-        selectInput('in3', 'Options', NULL, multiple=TRUE, selectize=FALSE)
+        selectInput('selectInput_acceptedLevels', "Correct levels:", 
+                    res$monitor[[res$variableTypes$Variables[input$exploreVarNames_rows_selected]]]$acceptedLevels, 
+                    multiple=TRUE, selectize=FALSE)
       )
     }
     if (set==4){ # ordered factor
       out <- list(h3("Define the correct classes"),
                   h3("And order."),
-                  selectInput('in3', 'Options', unique(res$data[,input$exploreVarNames_rows_selected]), multiple=TRUE, selectize=FALSE))
+                  ##sortable is the shit xxx???!!!
+                  ###library(sortable)
+                  orderInput("a","a",unique(res$data[!is.missing(res$data[,input$exploreVarNames_rows_selected]),
+                                                     input$exploreVarNames_rows_selected]),
+                                                     connect ="b"),
+                  orderInput("b","b",NULL,connect = "a")
+                  )
     }
     if (set==5){ # date
       out <- list(
         h5("The first five dates are recognized as follows:"),
         verbatimTextOutput('out1'),
         h5("Define date format. If they are only numbers e.g. 492933 then write: dddd and define a Origin"),
-        textInput("textinput","date format","e.g. dd.mm.yy"),
+        textInput("textinput","date format","e.g. 01.02.1988 -> dd.mm.yyyy or 08/14/70 -> mm/dd/yy"),
         h5("Some software saves dates by a different origin. check your dates and consider updating the origin."),
         dateInput("origin","Origin:", "1900-01-01")
       )

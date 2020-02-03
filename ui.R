@@ -208,26 +208,26 @@ dashboardPage(skin = "blue",
               body = dashboardBody(
                 extendShinyjs(text = jscode),
                 # defines a new box status 'primary'
-                tags$style(HTML("
-
-
-.box.box-solid.box-primary>.box-header {
-  color:#fff;
-  background:#666666
-                    }
-
-.box.box-solid.box-primary{
-border-bottom-color:#666666;
-border-left-color:#666666;
-border-right-color:#666666;
-border-top-color:#666666;
-}
-
-                                    ")),
+#                 tags$style(HTML("
+# 
+# 
+# .box.box-solid.box-primary>.box-header {
+#   color:#fff;
+#   background:#666666
+#                     }
+# 
+# .box.box-solid.box-primary{
+# border-bottom-color:#666666;
+# border-left-color:#666666;
+# border-right-color:#666666;
+# border-top-color:#666666;
+# }
+# 
+#                                     ")),
                 # defines a new box status 'primary'
                 tags$style(
                 HTML("
-                  .box.box-solid.box-abs>.box-header {
+                  .box.box-solid.box-primary>.box-header {
                     color:#fff;
                     background:#666666
                   }
@@ -236,6 +236,22 @@ border-top-color:#666666;
                     border-left-color:#666666;
                     border-right-color:#666666;
                     border-top-color:#666666;
+                  }
+                ")),
+                tags$style(
+                  HTML("
+                  .box.box-solid.box-warning>.box-header {
+                    color:#fff;
+                    background:#001F3F
+                  }
+                  .progress-bar-warning {
+                  background-color: #001F3F;
+                  }
+                  .box.box-solid.box-warning{
+                    border-bottom-color:#001F3F;
+                    border-left-color:#001F3F;
+                    border-right-color:#001F3F;
+                    border-top-color:#001F3F;
                   }
                 ")),
                 tabItems(
@@ -458,10 +474,13 @@ border-top-color:#666666;
                             ),
                             box(width = 8,
                                 h4("Overview of your Data and weather or not they are correctly classified or in th monitor."),
-                                DT::dataTableOutput("exploreVarNames")
+                                DT::dataTableOutput("exploreVarNames"),
+                                htmlOutput("explore.progress")
                             ),
                             column(4,
                               box(width = 12,
+                                  solidHeader = TRUE,
+                                  status = "warning",
                                   title = "Monitor:",
                                   htmlOutput("explore.sidePanel")
                               ), 

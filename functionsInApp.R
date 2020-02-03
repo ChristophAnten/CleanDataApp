@@ -517,6 +517,27 @@ get.newestTypes <- function(df.variableTypes){
   return(ifelse(is.na(type.changedTo),type.init,type.changedTo))
 }
 
+setToType <- function(set){
+  ifelse(
+    set==1,"numeric",
+    ifelse(
+      set==2,"integer",
+      ifelse(
+        set==3,"categorical",
+        ifelse(
+          set==4,"ordinal",
+          ifelse(
+            set==5,"Date",
+            ifelse(
+              set==6,"none",NA)
+          )
+        )  
+      )  
+    )
+  )
+}
+?switch
+
 # update.classified <- function(variableName,df.classified){
 #   df.classified[,variableName] <- is.non()
 # }

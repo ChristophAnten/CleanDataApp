@@ -328,12 +328,14 @@ shinyServer(function(input, output, session) {
 
   
   output$MainBody=renderUI({
+    req(res$data)
     box(width=12,
       DT::dataTableOutput("data"),
+      # add a progressbar
       div(paste0("Variables defined: ",sum(res$variableTypes$set!=0),"/",NCOL(res$data))),
       prgoressBar(sum(res$variableTypes$set!=0)/NCOL(res$data)*100, color = "green", striped = TRUE, active = TRUE, size = "sm")
-      
-      
+
+
       # textOutput('myText')
     )})
   
@@ -367,16 +369,16 @@ shinyServer(function(input, output, session) {
     {
       req(res$varNames)
       # print(res$varNames)
-      addTooltip(session, "button_1_1", "title", placement = "bottom", trigger = "hover",
-                 options = NULL)
       res$varNames %>% 
         `colnames<-`(letters[1:NCOL(res$varNames)])
     }, 
-    server = F, 
+    # server = F, 
     escape = F,
     selection = 'none',  
     extensions = "FixedColumns",
-    options = list(scrollX = TRUE,
+    options = list(#scrollY = '400px',
+                   scrollX = TRUE,
+                   paging = F,
                    fixedColumns = list(leftColumns = 2))
   ) 
   # tooltip = tooltipOptions(title = "Click to see inputs !")
@@ -426,10 +428,12 @@ shinyServer(function(input, output, session) {
     print(res)
     print("res$classified--------------------------------------------------------#")
     try(print(head(res$classified)))
-    print("res$variableTypesn----------------------------------------------------#")
+    print("res$variableTypes----------------------------------------------------#")
     try(print(res$variableTypes))
     print("res$n-----------------------------------------------------------------#")
     try(print(res$n))
+    print("res$monitor-----------------------------------------------------------------#")
+    try(print(res$monitor))
     # try(print(res$varNames))
     
     #showModal(dataModal("id_1_1_123"))
@@ -451,12 +455,12 @@ shinyServer(function(input, output, session) {
       res$varNames <- toggleSelected(res$varNames,selectedCol,selectedRow,nCol = 6)
       
       res$classified[,selectedRow] <- res$classified[,selectedRow] +
-        10 * is.non(res$data[,selectedRow],"varName!",names(def.varNames.buttons)[res$variableTypes$set[selectedRow]])
+        10 * !is.non(res$data[,selectedRow],"varName!",names(def.varNames.buttons)[res$variableTypes$set[selectedRow]])
       
       if (selectedCol == 6){
         res$variableTypes$hasMonitor[selectedRow] = NA
       }
-      
+      ### if direct switch reset monitor!!!???xxx
       res$variableTypes$nMissing[selectedRow] <- sum(is.missing(res$data[,selectedRow]))
       res$variableTypes$nInClass[selectedRow] <- sum(is.non(res$data[,selectedRow],"varName!",names(def.varNames.buttons)[res$variableTypes$set[selectedRow]]))
       res$variableTypes$nInMonitor[selectedRow] <- NA
@@ -467,6 +471,7 @@ shinyServer(function(input, output, session) {
       res$varNames <- unToggle(res$varNames,selectedRow,nCol = 6)
       
       ## Check if monitor is still active! xxx!!!???
+      res$variableTypes$hasMonitor[selectedRow] = FALSE
       res$classified[,selectedRow] <- res$classified[,selectedRow] %% 10
       
       res$variableTypes$nMissing[selectedRow] <- NA
@@ -499,14 +504,30 @@ shinyServer(function(input, output, session) {
     js$collapse("infoBox_monitor")
   })  
   
+  output$explore.progress <- renderUI( {
+    req(res$variableTypes)
+    list(
+    div(paste0("monitors defined: ",sum(res$variableTypes$hasMonitor!=0,na.rm = T),"/",sum(!is.na(res$variableTypes$hasMonitor)))),
+    prgoressBar(sum(res$variableTypes$hasMonitor!=0,na.rm = T)/sum(!is.na(res$variableTypes$hasMonitor))*100, color = "warning", striped = TRUE, active = TRUE, size = "sm")
+  )
+    # dynamicUI.explore.progress()
+  })
+  
+  
   output$exploreVarNames <- DT::renderDataTable(
     {
+      req(res$data)
       data.frame(variable = colnames(res$data),
-                 type=res$variableTypes$set, 
-                 monitor = NA, # set TRUE/FALSE
-                 nMissing = res$variableTypes$nMissing,
-                 nWrongClass = res$variableTypes$nInClass,
-                 nNotInMonitor = res$variableTypes$nInMonitor)
+                 type=setToType(res$variableTypes$set), 
+                 monitor = res$variableTypes$hasMonitor, # set TRUE/FALSE
+                 nMissing = ifelse(is.na(res$variableTypes$nMissing),NA,
+                                   sprintf("%i of %i",res$variableTypes$nMissing,res$n)),
+                 nWrongClass = ifelse(is.na(res$variableTypes$nInClass),NA,
+                                      sprintf("%i of %i",res$variableTypes$nInClass,res$n-res$variableTypes$nMissing)),
+                 nNotInMonitor = ifelse(is.na(res$variableTypes$nInMonitor),NA,
+                                        sprintf("%i of %i",res$variableTypes$nInMonitor,
+                                                res$n-res$variableTypes$nMissing-res$variableTypes$nInClass))
+                 )
     },
     selection = 'single',  
     #extensions = "FixedColumns",
@@ -534,7 +555,7 @@ shinyServer(function(input, output, session) {
   observeEvent(input$accept_monitor,{
     print(input$exploreVarNames_rows_selected) 
     
-    # update hasMonitor
+    # update res$variableTypes$hasMonitor
     res$variableTypes$hasMonitor[input$exploreVarNames_rows_selected] = TRUE
     
     # generate actual monitor
@@ -545,6 +566,17 @@ shinyServer(function(input, output, session) {
       res$monitor[[res$variableTypes$Variables[input$exploreVarNames_rows_selected]]]$maximum = 
         ifelse(is.na(input$max_numeric),Inf,input$max_numeric)
       print(res$monitor[[res$variableTypes$Variables[input$exploreVarNames_rows_selected]]])
+      
+      # update calssified
+      # need to unclassifie if change of class!
+      res$classified[,input$exploreVarNames_rows_selected] <-
+        res$classified[,input$exploreVarNames_rows_selected] + 100 *
+        (res$data[,input$exploreVarNames_rows_selected] > res$monitor[[res$variableTypes$Variables[input$exploreVarNames_rows_selected]]]$minimum) *
+        (res$data[,input$exploreVarNames_rows_selected] < res$monitor[[res$variableTypes$Variables[input$exploreVarNames_rows_selected]]]$maximum)
+      
+      ## check if in class!
+      res$variableTypes$nInMonitor[input$exploreVarNames_rows_selected] <-
+        sum(floor(res$classified[,input$exploreVarNames_rows_selected] / 100))
     }
     if (res$variableTypes$set[input$exploreVarNames_rows_selected] == 2){
       res$monitor[[res$variableTypes$Variables[input$exploreVarNames_rows_selected]]]$minimum = 
@@ -561,7 +593,7 @@ shinyServer(function(input, output, session) {
   explore.rightPanel <- function(set){
     if (set==0){
       return(
-        out <- list(h4("There can not be a monitor for nothing!"))
+        out <- list(h4("If you don't know the type, there is nothing to monitor!"))
       )
     }
     if (set==1){ # numeric
@@ -577,23 +609,44 @@ shinyServer(function(input, output, session) {
           )
         ),
         fluidRow(
-          column(6,numericInput("min_numeric","minimum",-Inf)),
-          column(6,numericInput("max_numeric","maximum",Inf)),
+          column(6,numericInput("min_numeric","minimum",ifelse(
+            res$variableTypes$hasMonitor[input$exploreVarNames_rows_selected]==TRUE,
+            res$monitor[[input$exploreVarNames_rows_selected]]$minimum,-Inf
+          ))),
+          column(6,numericInput("max_numeric","maximum",ifelse(
+            res$variableTypes$hasMonitor[input$exploreVarNames_rows_selected]==TRUE,
+            res$monitor[[input$exploreVarNames_rows_selected]]$maximum,Inf
+          ))),
           column(12,h5("If there is no limit, enter nothing."))
         )
       )
     }
     if (set==2){ # integer
       out <- list(
-        column(6,numericInput("min_integer","minimum",-Inf)),
-        column(6,numericInput("max_integer","maximum",Inf)),
+        column(6,numericInput("min_integer","minimum",ifelse(
+          res$variableTypes$hasMonitor[input$exploreVarNames_rows_selected]==TRUE,
+          res$monitor[[input$exploreVarNames_rows_selected]]$minimum,-Inf
+        ),)),
+        column(6,numericInput("max_integer","maximum",ifelse(
+          res$variableTypes$hasMonitor[input$exploreVarNames_rows_selected]==TRUE,
+          res$monitor[[input$exploreVarNames_rows_selected]]$maximum,Inf
+        ))),
         column(12,h5("If there is no limit, enter nothing."))
       )
     }
     if (set==3){ # cateforial
       out <- list(
-        h3("Define the correct classes"),
-        selectInput('in3', 'Options', unique(res$data[,input$exploreVarNames_rows_selected]), multiple=TRUE, selectize=FALSE)
+        h4("Define the correct levels"),
+        # checkboxGroupInput('in3', NULL, unique(res$data[,input$exploreVarNames_rows_selected]))
+        selectInput('in3', NULL, unique(res$data[,input$exploreVarNames_rows_selected]), multiple=TRUE, selectize=FALSE),
+        fluidRow(
+          column(6,
+        actionButton("acceptLevels","Accept",icon = icon("angle-down"),width = "100%")
+        ),
+        column(6,
+                actionButton("removeLevels","Remove",icon = icon("angle-up"),width = "100%")
+               )),
+        selectInput('in3', 'Options', NULL, multiple=TRUE, selectize=FALSE)
       )
     }
     if (set==4){ # ordered factor
@@ -622,7 +675,7 @@ shinyServer(function(input, output, session) {
         list(
           tags$hr(),
           column(12,
-                 actionButton("accept_monitor","Accept Monitor!",width = "100%")
+                 actionButton("accept_monitor","Accept Monitor!",width = "100%",style = btn.style.preload)
           )
         )
       )
@@ -642,7 +695,12 @@ shinyServer(function(input, output, session) {
   })
   
   output$explore.sidePanel <- renderUI( {
+    req(res$data)
+    if (is.null(input$exploreVarNames_rows_selected)){
+      h5("Select a row in the overview-table!")
+    } else{
     dynamicUI.explore.rightPanel()
+    }
   })
   #----------------------------------------------------------------- 4. Overview ----
   
